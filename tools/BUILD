@@ -43,3 +43,11 @@ gematria_py_binary(
     ],
     visibility = ["//visibility:public"],
 )
+
+cc_binary(
+    name = "bb_annotator",
+    srcs = ["bb_annotator.cc"],
+    deps = [
+        "@llvm-project//llvm:Exegesis"
+    ]
+)

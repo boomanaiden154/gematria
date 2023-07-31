@@ -73,6 +73,24 @@ git_repository(
     tag = "v4.13.0",
 )
 
+# Needed to build libpfm4 as it is configured to be built by GNU Make.
+git_repository(
+    name = "rules_foreign_cc",
+    commit = "816905a078773405803e86635def78b61d2f782d",
+    remote = "https://github.com/bazelbuild/rules_foreign_cc.git",
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()
+
+git_repository(
+    name = "pfm",
+    build_file = "@llvm-raw//utils/bazel/third_party_build:pfm.BUILD",
+    remote = "https://git.code.sf.net/p/perfmon2/libpfm4",
+    tag = "v4.12.1",
+)
+
 git_repository(
     name = "rules_proto",
     remote = "https://github.com/bazelbuild/rules_proto.git",
