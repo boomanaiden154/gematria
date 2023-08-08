@@ -48,6 +48,16 @@ cc_binary(
     name = "bb_annotator",
     srcs = ["bb_annotator.cc"],
     deps = [
-        "@llvm-project//llvm:Exegesis"
+        "@llvm-project//llvm:AllTargetsAsmParsers",
+        "@llvm-project//llvm:AllTargetsCodeGens",
+        "@llvm-project//llvm:AllTargetsDisassemblers",
+        "@llvm-project//llvm:CodeGenTypes",
+        "@llvm-project//llvm:Exegesis",
+        "@llvm-project//llvm:MC",
+        "@llvm-project//llvm:MCParser",
+        "@llvm-project//llvm:Object",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TargetParser",
+        "@llvm-project//llvm:config",
     ]
 )

@@ -192,13 +192,10 @@ http_archive(
     build_file_content = "# empty",
     sha256 = LLVM_SHA256,
     strip_prefix = "llvm-project-" + LLVM_COMMIT,
-    urls = ["https://github.com/llvm/llvm-project/archive/{commit}.zip".format(commit = LLVM_COMMIT)],
+    urls = ["https://github.com/llvm/llvm-project/archive/{commit}.tar.gz".format(commit = LLVM_COMMIT)],
 )
 
-load(
-    "@llvm-raw//utils/bazel:configure.bzl",
-    "llvm_configure",
-)
+load("@llvm-raw//utils/bazel:configure.bzl", "llvm_configure")
 
 llvm_configure(name = "llvm-project")
 
