@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 
 #include "llvm/include/llvm/Support/TargetSelect.h"
 #include "llvm/include/llvm/Support/Error.h"
@@ -7,6 +8,7 @@
 #include "TargetSelect.h"
 #include "Target.h"
 #include "BenchmarkRunner.h"
+#include "SnippetFile.h"
 
 using namespace llvm;
 using namespace llvm::exegesis;
@@ -31,11 +33,20 @@ int main() {
 
   const std::unique_ptr<BenchmarkRunner> Runner =
       ExitOnErr(State.getExegesisTarget().createBenchmarkRunner(
-          exegesis::Benchmark::Latency, State, BenchmarkPhaseSelectorE::Measure, BenchmarkRunner::ExecutionModeE::SubProcess,
+          Benchmark::Latency, State, BenchmarkPhaseSelectorE::Measure, BenchmarkRunner::ExecutionModeE::SubProcess,
           Benchmark::Min));
   if (!Runner) {
     ExitWithError("cannot create benchmark runner");
   }
+
+  std::vector<BenchmarkCode> Configurations = ExitOnErr(readSnippets(State, "/gematria/test.asm"));
+
+  std::unique_ptr<const SnippetRepetitor> Repetitor = SnippetRepetitor::Create(Benchmark::RepetitionModeE::Duplicate, State);
+
+  auto RC = ExitOnErr(Runner->getRunnableConfiguration(Configurations[0], 10000, 0, *Repetitor));
+
+  auto BenchmarkResults = ExitOnErr(Runner->runConfiguration(std::move(RC), {}));
+  std::cout << BenchmarkResults.Measurements[0].PerSnippetValue << "\n";
 
   std::cout << "testing\n";
   return 0;
