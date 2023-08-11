@@ -29,7 +29,8 @@ int main() {
   InitializeAllAsmParsers();
   InitializeAllExegesisTargets();
 
-  const LLVMState State = ExitOnErr(LLVMState::Create("x86_64-unknown-unknown", "x86-64", "", true));
+  // Last value (which is a boolean) specifies whether or not we should use dummy perf counters.
+  const LLVMState State = ExitOnErr(LLVMState::Create("x86_64-unknown-unknown", "sandybridge", "", false));
 
   const std::unique_ptr<BenchmarkRunner> Runner =
       ExitOnErr(State.getExegesisTarget().createBenchmarkRunner(
@@ -38,6 +39,9 @@ int main() {
   if (!Runner) {
     ExitWithError("cannot create benchmark runner");
   }
+
+  if (exegesis::pfm::pfmInitialize())
+    ExitWithError("cannot initialize libpfm");
 
   std::vector<BenchmarkCode> Configurations = ExitOnErr(readSnippets(State, "/gematria/test.asm"));
 
