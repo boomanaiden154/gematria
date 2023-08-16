@@ -45,12 +45,48 @@ int main() {
 
   std::vector<BenchmarkCode> Configurations = ExitOnErr(readSnippets(State, "/gematria/test.asm"));
 
+  MemoryValue MemVal;
+  MemVal.Value = APInt(4096, 305419776);
+  MemVal.Index = 0;
+  MemVal.SizeBytes = 4096;
+
+  Configurations[0].Key.MemoryValues["test"] = MemVal;
+
   std::unique_ptr<const SnippetRepetitor> Repetitor = SnippetRepetitor::Create(Benchmark::RepetitionModeE::Duplicate, State);
 
-  auto RC = ExitOnErr(Runner->getRunnableConfiguration(Configurations[0], 10000, 0, *Repetitor));
+  while(true) {
+    auto RC = ExitOnErr(Runner->getRunnableConfiguration(Configurations[0], 10000, 0, *Repetitor));
 
-  auto BenchmarkResults = ExitOnErr(Runner->runConfiguration(std::move(RC), {}));
-  std::cout << BenchmarkResults.Measurements[0].PerSnippetValue << "\n";
+    auto BenchmarkResults = Runner->runConfiguration(std::move(RC), {});
+
+    if(!BenchmarkResults) {
+      auto ResultError = BenchmarkResults.takeError();
+      if(ResultError.isA<SnippetSegfaultCrash>()) {
+        Error blahTest = handleErrors(std::move(ResultError), [&](SnippetSegfaultCrash &testThing) -> Error {
+          std::cout << testThing.getAddress() << "\n";
+          testThing.log(outs());
+          std::cout << "\n";
+          MemoryMapping MemMap;
+          MemMap.Address = testThing.getAddress();
+          MemMap.MemoryValueName = "test";
+          Configurations[0].Key.MemoryMappings.push_back(MemMap);
+
+          return Error::success();
+        });
+        if(blahTest) {
+          std::cout << "Threw an actual error\n";
+        }
+      }
+      continue;
+    }
+    std::cout << BenchmarkResults->Measurements[0].PerSnippetValue << "\n";
+    break;
+    //std::cout << BenchmarkResults->Error << "\n";
+  }
+
+  for(MemoryMapping &Mapping : Configurations[0].Key.MemoryMappings) {
+    std::cout << "Mapping at: " << Mapping.Address << "\n";
+  }
 
   std::cout << "testing\n";
   return 0;

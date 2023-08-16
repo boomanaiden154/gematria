@@ -1,4 +1,5 @@
-# LLVM-EXEGESIS-DEFREG XMM1 42
-# LLVM-EXEGESIS-DEFREG XMM2 42
-# LLVM-EXEGESIS-DEFREG XMM3 42
-vhaddps       %xmm2, %xmm2, %xmm3
+# LLVM-EXEGESIS-DEFREG RBX 20000
+movq (%rbx), %rax
+movq %rbx, %rdx
+addq $8192, %rdx
+movq (%rdx), %rax
