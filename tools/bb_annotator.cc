@@ -30,7 +30,7 @@ int main() {
   InitializeAllExegesisTargets();
 
   // Last value (which is a boolean) specifies whether or not we should use dummy perf counters.
-  const LLVMState State = ExitOnErr(LLVMState::Create("x86_64-unknown-unknown", "sandybridge", "", false));
+  const LLVMState State = ExitOnErr(LLVMState::Create("x86_64-unknown-unknown", "znver2", "", false));
 
   const std::unique_ptr<BenchmarkRunner> Runner =
       ExitOnErr(State.getExegesisTarget().createBenchmarkRunner(
@@ -43,7 +43,7 @@ int main() {
   if (exegesis::pfm::pfmInitialize())
     ExitWithError("cannot initialize libpfm");
 
-  std::vector<BenchmarkCode> Configurations = ExitOnErr(readSnippets(State, "/gematria/test.asm"));
+  std::vector<BenchmarkCode> Configurations = ExitOnErr(readSnippets(State, "/tmp/gematria/test.asm"));
 
   MemoryValue MemVal;
   MemVal.Value = APInt(4096, 305419776);
@@ -61,13 +61,16 @@ int main() {
 
     if(!BenchmarkResults) {
       auto ResultError = BenchmarkResults.takeError();
-      if(ResultError.isA<SnippetSegfaultCrash>()) {
-        Error blahTest = handleErrors(std::move(ResultError), [&](SnippetSegfaultCrash &testThing) -> Error {
-          std::cout << testThing.getAddress() << "\n";
+      if(ResultError.isA<SnippetCrash>()) {
+        Error blahTest = handleErrors(std::move(ResultError), [&](SnippetCrash &testThing) -> Error {
+	  if (testThing.SegfaultAddress == 0) {
+	    return Error::success();
+	  }
+          std::cout << testThing.SegfaultAddress << "\n";
           testThing.log(outs());
           std::cout << "\n";
           MemoryMapping MemMap;
-          MemMap.Address = testThing.getAddress();
+          MemMap.Address = testThing.SegfaultAddress;
           MemMap.MemoryValueName = "test";
           Configurations[0].Key.MemoryMappings.push_back(MemMap);
 
@@ -76,18 +79,22 @@ int main() {
         if(blahTest) {
           std::cout << "Threw an actual error\n";
         }
+      } else {
+        std::cout << "was not a snippet crash\n";
       }
       continue;
+    } else {
+      std::cout << "No errors?\n";
     }
-    std::cout << BenchmarkResults->Measurements[0].PerSnippetValue << "\n";
+    //std::cout << BenchmarkResults->Measurements[0].PerSnippetValue << "\n";
     break;
     //std::cout << BenchmarkResults->Error << "\n";
   }
 
+  std::cout << "mapping memory\n";
   for(MemoryMapping &Mapping : Configurations[0].Key.MemoryMappings) {
     std::cout << "Mapping at: " << Mapping.Address << "\n";
   }
 
-  std::cout << "testing\n";
   return 0;
 }

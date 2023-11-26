@@ -183,16 +183,22 @@ new_git_repository(
 
 # LLVM and its dependencies
 
-LLVM_COMMIT = "2a1f1b5fde0a2e03f94fa2cb5c7765d405fda0de"
+# LLVM_COMMIT = "2a1f1b5fde0a2e03f94fa2cb5c7765d405fda0de"
+# 
+# LLVM_SHA256 = "f91c596575c69d9861892fdf57ad54d1fb31ab1a4eb5897f3bd58383ed69f838"
+# 
+# http_archive(
+#     name = "llvm-raw",
+#     build_file_content = "# empty",
+#     sha256 = LLVM_SHA256,
+#     strip_prefix = "llvm-project-" + LLVM_COMMIT,
+#     urls = ["https://github.com/llvm/llvm-project/archive/{commit}.tar.gz".format(commit = LLVM_COMMIT)],
+# )
 
-LLVM_SHA256 = "f91c596575c69d9861892fdf57ad54d1fb31ab1a4eb5897f3bd58383ed69f838"
-
-http_archive(
+new_local_repository(
     name = "llvm-raw",
     build_file_content = "# empty",
-    sha256 = LLVM_SHA256,
-    strip_prefix = "llvm-project-" + LLVM_COMMIT,
-    urls = ["https://github.com/llvm/llvm-project/archive/{commit}.tar.gz".format(commit = LLVM_COMMIT)],
+    path = "/tmp/llvm-project",
 )
 
 load("@llvm-raw//utils/bazel:configure.bzl", "llvm_configure")
