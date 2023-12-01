@@ -3,6 +3,9 @@
 
 #include "llvm/include/llvm/Support/TargetSelect.h"
 #include "llvm/include/llvm/Support/Error.h"
+#include "gematria/llvm/llvm_architecture_support.h"
+#include "gematria/utils/string.h"
+#include "gematria/llvm/disassembler.h"
 #include "LlvmState.h"
 #include "BenchmarkRunner.h"
 #include "TargetSelect.h"
@@ -10,6 +13,7 @@
 #include "BenchmarkRunner.h"
 #include "SnippetFile.h"
 
+using namespace gematria;
 using namespace llvm;
 using namespace llvm::exegesis;
 
@@ -30,11 +34,40 @@ int main() {
   InitializeAllExegesisTargets();
 
   // Last value (which is a boolean) specifies whether or not we should use dummy perf counters.
-  const LLVMState State = ExitOnErr(LLVMState::Create("x86_64-unknown-unknown", "znver2", "", false));
+  const LLVMState State = ExitOnErr(LLVMState::Create("", "native", "", false));
+
+  std::string HexBB = "4883c2014883fa40";
+
+  std::unique_ptr<LlvmArchitectureSupport> ArchSupport = LlvmArchitectureSupport::X86_64();
+
+  std::unique_ptr<llvm::MCInstPrinter> MCPrinter = ArchSupport->CreateMCInstPrinter(0);
+
+  auto bytes_or = ParseHexString(HexBB);
+  if(!bytes_or.has_value()) {
+    ExitWithError("Failed to parse hex string");
+  }
+
+  auto Instructions = DisassembleAllInstructions(ArchSupport->mc_disassembler(),
+		  ArchSupport->mc_instr_info(),
+		  ArchSupport->mc_register_info(), ArchSupport->mc_subtarget_info(),
+		  *MCPrinter, 0, bytes_or.value());
+
+  if (!Instructions) {
+    ExitOnErr(Instructions.takeError());
+  }
+
+  std::vector<MCInst> MachineInstructions;
+
+  for (auto Instruction : *Instructions) {
+    MachineInstructions.push_back(Instruction.mc_inst);
+  }
 
   const std::unique_ptr<BenchmarkRunner> Runner =
       ExitOnErr(State.getExegesisTarget().createBenchmarkRunner(
-          Benchmark::Latency, State, BenchmarkPhaseSelectorE::Measure, BenchmarkRunner::ExecutionModeE::SubProcess,
+          Benchmark::Latency,
+          State,
+          BenchmarkPhaseSelectorE::Measure,
+          BenchmarkRunner::ExecutionModeE::SubProcess,
           Benchmark::Min));
   if (!Runner) {
     ExitWithError("cannot create benchmark runner");
@@ -43,19 +76,20 @@ int main() {
   if (exegesis::pfm::pfmInitialize())
     ExitWithError("cannot initialize libpfm");
 
-  std::vector<BenchmarkCode> Configurations = ExitOnErr(readSnippets(State, "/tmp/gematria/test.asm"));
+  BenchmarkCode BenchCode;
+  BenchCode.Key.Instructions = MachineInstructions;
 
   MemoryValue MemVal;
   MemVal.Value = APInt(4096, 305419776);
   MemVal.Index = 0;
   MemVal.SizeBytes = 4096;
 
-  Configurations[0].Key.MemoryValues["test"] = MemVal;
+  BenchCode.Key.MemoryValues["test"] = MemVal;
 
   std::unique_ptr<const SnippetRepetitor> Repetitor = SnippetRepetitor::Create(Benchmark::RepetitionModeE::Duplicate, State);
 
   while(true) {
-    auto RC = ExitOnErr(Runner->getRunnableConfiguration(Configurations[0], 10000, 0, *Repetitor));
+    auto RC = ExitOnErr(Runner->getRunnableConfiguration(BenchCode, 10000, 0, *Repetitor));
 
     auto BenchmarkResults = Runner->runConfiguration(std::move(RC), {});
 
@@ -72,7 +106,7 @@ int main() {
           MemoryMapping MemMap;
           MemMap.Address = testThing.SegfaultAddress;
           MemMap.MemoryValueName = "test";
-          Configurations[0].Key.MemoryMappings.push_back(MemMap);
+          BenchCode.Key.MemoryMappings.push_back(MemMap);
 
           return Error::success();
         });
@@ -92,7 +126,7 @@ int main() {
   }
 
   std::cout << "mapping memory\n";
-  for(MemoryMapping &Mapping : Configurations[0].Key.MemoryMappings) {
+  for(MemoryMapping &Mapping : BenchCode.Key.MemoryMappings) {
     std::cout << "Mapping at: " << Mapping.Address << "\n";
   }
 

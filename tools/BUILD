@@ -59,5 +59,8 @@ cc_binary(
         "@llvm-project//llvm:Support",
         "@llvm-project//llvm:TargetParser",
         "@llvm-project//llvm:config",
+	"//gematria/llvm:llvm_architecture_support",
+	"//gematria/utils:string",
+	"//gematria/llvm:disassembler"
     ]
 )
