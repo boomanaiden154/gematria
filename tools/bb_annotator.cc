@@ -46,7 +46,7 @@ int main() {
   std::vector<BenchmarkCode> Configurations = ExitOnErr(readSnippets(State, "/tmp/gematria/test.asm"));
 
   MemoryValue MemVal;
-  MemVal.Value = APInt(4096, 305419776);
+  MemVal.Value = APInt(4096, 0x0000000012345600);
   MemVal.Index = 0;
   MemVal.SizeBytes = 4096;
 
@@ -64,13 +64,14 @@ int main() {
       if(ResultError.isA<SnippetCrash>()) {
         Error blahTest = handleErrors(std::move(ResultError), [&](SnippetCrash &testThing) -> Error {
 	  if (testThing.SegfaultAddress == 0) {
+	    std::cout << "got zero mapping\n";
 	    return Error::success();
 	  }
           std::cout << testThing.SegfaultAddress << "\n";
           testThing.log(outs());
           std::cout << "\n";
           MemoryMapping MemMap;
-          MemMap.Address = testThing.SegfaultAddress;
+          MemMap.Address = (testThing.SegfaultAddress / 4096) * 4096;
           MemMap.MemoryValueName = "test";
           Configurations[0].Key.MemoryMappings.push_back(MemMap);
 
