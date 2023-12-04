@@ -23,6 +23,8 @@
 #include "X86RegisterInfo.h"
 #include "gematria/llvm/disassembler.h"
 
+#include <iostream>
+
 using namespace llvm;
 using namespace llvm::exegesis;
 
@@ -111,10 +113,8 @@ Expected<AccessedAddrs> ExegesisAnnotator::FindAccessedAddrs(
   }
 
   while (true) {
-    std::unique_ptr<const SnippetRepetitor> SR =
-        SnippetRepetitor::Create(Benchmark::RepetitionModeE::Duplicate, State);
     Expected<BenchmarkRunner::RunnableConfiguration> RCOrErr =
-        Runner->getRunnableConfiguration(BenchCode, 10000, 0, *SR);
+        Runner->getRunnableConfiguration(BenchCode, 10000, 0, *Repetitor);
 
     if (!RCOrErr) return RCOrErr.takeError();
 
@@ -131,10 +131,14 @@ Expected<AccessedAddrs> ExegesisAnnotator::FindAccessedAddrs(
     if (!ResultError.isA<SnippetCrash>()) return std::move(ResultError);
 
     handleAllErrors(std::move(ResultError), [&](SnippetCrash &CrashInfo) {
+      std::cout << "got a snippet crash\n";
       if (CrashInfo.GetCrashAddress() == 0) return;
+
+      std::cout << "handling a snippet crash\n";
 
       MemoryMapping MemMap;
       MemMap.Address = CrashInfo.GetCrashAddress();
+      std::cout << std::hex << CrashInfo.GetCrashAddress() << "\n";
       MemMap.MemoryValueName = "memdef1";
       BenchCode.Key.MemoryMappings.push_back(MemMap);
     });

@@ -23,11 +23,14 @@
 #include "absl/flags/parse.h"
 #include "gematria/datasets/bhive_importer.h"
 #include "gematria/datasets/find_accessed_addrs.h"
+#include "gematria/datasets/find_accessed_addrs_exegesis.h"
 #include "gematria/llvm/canonicalizer.h"
 #include "gematria/llvm/llvm_architecture_support.h"
 #include "gematria/utils/string.h"
 #include "X86RegisterInfo.h"
 #include "X86Subtarget.h"
+
+#include "TargetSelect.h"
 
 constexpr uint64_t kInitialRegVal = 10000;
 constexpr uint64_t kInitialMemVal = 2147483647;
@@ -85,6 +88,12 @@ int main(int argc, char* argv[]) {
   gematria::X86Canonicalizer canonicalizer(&llvm_support->target_machine());
   gematria::BHiveImporter bhive_importer(&canonicalizer);
 
+  llvm::exegesis::InitializeX86ExegesisTarget();
+
+  llvm::exegesis::LLVMState State(cantFail(llvm::exegesis::LLVMState::Create("", "native")));
+
+  auto Annotator = cantFail(gematria::ExegesisAnnotator::Create(*llvm_support, State));
+
   std::ifstream bhive_csv_file(bhive_filename);
   for (std::string line; std::getline(bhive_csv_file, line);) {
     auto comma_index = line.find(',');
@@ -102,7 +111,7 @@ int main(int argc, char* argv[]) {
     }
 
     // This will only get the first segfault address.
-    auto addrs = gematria::FindAccessedAddrs(*bytes);
+    auto addrs = Annotator->FindAccessedAddrs(*bytes);
     auto proto = bhive_importer.BasicBlockProtoFromMachineCode(*bytes);
 
     // Check for errors.
@@ -111,14 +120,8 @@ int main(int argc, char* argv[]) {
                 << proto.status() << "\n";
       continue;
     }
-    if (!addrs.ok()) {
-      std::cerr << "Failed to find addresses for block '" << hex
-                << "': " << addrs.status() << "\n";
-      std::cerr << "Block disassembly:\n";
-      for (const auto& instr : proto->machine_instructions()) {
-        std::cerr << "\t" << instr.assembly() << "\n";
-      }
-      continue;
+    if (!addrs) {
+      std::cerr << "Failed to find addresses for block\n";
     }
 
     // Create output file path.
