@@ -154,6 +154,8 @@ int main(int argc, char* argv[]) {
       output_file << instr.assembly() << "\n";
     }
 
+    std::cout << "Just finished writing all annotations for a snippet\n";
+
     file_counter++;
   }
 }
