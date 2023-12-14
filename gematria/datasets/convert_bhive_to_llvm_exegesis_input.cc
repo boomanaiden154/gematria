@@ -32,8 +32,8 @@
 
 #include "TargetSelect.h"
 
-constexpr uint64_t kInitialRegVal = 10000;
-constexpr uint64_t kInitialMemVal = 2147483647;
+constexpr uint64_t kInitialRegVal = 0x12345600;
+constexpr uint64_t kInitialMemVal = 0x12345600;
 constexpr std::string_view kRegDefPrefix = "# LLVM-EXEGESIS-DEFREG ";
 constexpr std::string_view kMemDefPrefix = "# LLVM-EXEGESIS-MEM-DEF ";
 constexpr std::string_view kMemMapPrefix = "# LLVM-EXEGESIS-MEM-MAP ";
@@ -74,15 +74,17 @@ int main(int argc, char* argv[]) {
        i < MRI.getRegClass(llvm::X86::GR64_NOREXRegClassID).getNumRegs(); ++i) {
     llvm::StringRef reg_name =
         MRI.getName(MRI.getRegClass(llvm::X86::GR64_NOREXRegClassID).getRegister(i));
-    register_defs_lines += std::string(kRegDefPrefix) + std::string(reg_name) +
-                           " " + std::to_string(kInitialRegVal) + "\n";
+    std::stringstream register_line_stream;
+    register_line_stream << kRegDefPrefix << reg_name.str() << " " << std::hex << kInitialRegVal << "\n";
+    register_defs_lines += register_line_stream.str();
   }
   for (unsigned i = 0; i < MRI.getRegClass(llvm::X86::VR128RegClassID).getNumRegs();
        ++i) {
     llvm::StringRef reg_name =
         MRI.getName(MRI.getRegClass(llvm::X86::VR128RegClassID).getRegister(i));
-    register_defs_lines += std::string(kRegDefPrefix) + std::string(reg_name) +
-                           " " + std::to_string(kInitialRegVal) + "\n";
+    std::stringstream register_line_stream;
+    register_line_stream << kRegDefPrefix << reg_name.str() << " " << std::hex << kInitialRegVal << "\n";
+    register_defs_lines += register_line_stream.str();
   }
 
   gematria::X86Canonicalizer canonicalizer(&llvm_support->target_machine());
@@ -142,7 +144,7 @@ int main(int argc, char* argv[]) {
     // Multiple mappings can point to the same definition.
     if (addrs->accessed_blocks.size() > 0) {
       output_file << kMemDefPrefix << kMemNamePrefix << " " << addrs->block_size
-                  << " " << kInitialMemVal << "\n";
+                  << " " << std::hex << kInitialMemVal << std::dec << "\n";
     }
     for (const auto& addr : addrs->accessed_blocks) {
       output_file << kMemMapPrefix << kMemNamePrefix << " " << std::dec << addr
