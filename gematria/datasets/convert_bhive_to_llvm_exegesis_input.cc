@@ -71,9 +71,9 @@ int main(int argc, char* argv[]) {
   // Iterate through all general purpose registers and vector registers
   // and add them to the register definitions.
   for (unsigned i = 0;
-       i < MRI.getRegClass(llvm::X86::GR64_NOREXRegClassID).getNumRegs(); ++i) {
+       i < MRI.getRegClass(llvm::X86::GR64_NOREX2RegClassID).getNumRegs(); ++i) {
     llvm::StringRef reg_name =
-        MRI.getName(MRI.getRegClass(llvm::X86::GR64_NOREXRegClassID).getRegister(i));
+        MRI.getName(MRI.getRegClass(llvm::X86::GR64_NOREX2RegClassID).getRegister(i));
     std::stringstream register_line_stream;
     register_line_stream << kRegDefPrefix << reg_name.str() << " " << std::hex << kInitialRegVal << "\n";
     register_defs_lines += register_line_stream.str();
