@@ -165,14 +165,11 @@ new_git_repository(
 
 # LLVM and its dependencies
 
-LLVM_COMMIT = "67d7903262ce5c35bb23d599040dff29b9d7759e"
-
-LLVM_SHA256 = "0282bcfc2a66e9c499dd0464c636225318b3b20ebc7e497e0bf845809d8f3b6a"
+LLVM_COMMIT = "63c314835458211b165e48b2278800ea6d52620a"
 
 http_archive(
     name = "llvm-raw",
     build_file_content = "# empty",
-    sha256 = LLVM_SHA256,
     strip_prefix = "llvm-project-" + LLVM_COMMIT,
     urls = ["https://github.com/llvm/llvm-project/archive/{commit}.zip".format(commit = LLVM_COMMIT)],
 )
