@@ -98,6 +98,7 @@ int main(int argc, char* argv[]) {
 
   std::ifstream bhive_csv_file(bhive_filename);
   for (std::string line; std::getline(bhive_csv_file, line);) {
+    std::cout << "Working on file " << file_counter << "\n";
     auto comma_index = line.find(',');
     if (comma_index == std::string::npos) {
       std::cerr << "Invalid CSV file: no comma in line '" << line << "'\n";
@@ -144,7 +145,7 @@ int main(int argc, char* argv[]) {
     // Multiple mappings can point to the same definition.
     if (addrs->accessed_blocks.size() > 0) {
       output_file << kMemDefPrefix << kMemNamePrefix << " " << addrs->block_size
-                  << " " << std::hex << kInitialMemVal << std::dec << "\n";
+                  << " " << "0000000012345600" << "\n";
     }
     for (const auto& addr : addrs->accessed_blocks) {
       output_file << kMemMapPrefix << kMemNamePrefix << " " << std::dec << addr
