@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
 
   std::ifstream bhive_csv_file(bhive_filename);
   for (std::string line; std::getline(bhive_csv_file, line);) {
-    std::cout << "Working on file " << file_counter << "\n";
+    std::cout << "Working on file " << std::dec << file_counter << "\n";
     auto comma_index = line.find(',');
     if (comma_index == std::string::npos) {
       std::cerr << "Invalid CSV file: no comma in line '" << line << "'\n";
