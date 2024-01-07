@@ -30,6 +30,9 @@
 #include "X86RegisterInfo.h"
 #include "X86Subtarget.h"
 
+#include "llvm/Support/JSON.h"
+#include "llvm/Support/raw_ostream.h"
+
 #include "TargetSelect.h"
 
 constexpr uint64_t kInitialRegVal = 0x12345600;
@@ -96,7 +99,10 @@ int main(int argc, char* argv[]) {
 
   auto Annotator = cantFail(gematria::ExegesisAnnotator::Create(*llvm_support, State));
 
+  std::string output_file_path = output_dir + "/benchmarks.json";
+
   std::ifstream bhive_csv_file(bhive_filename);
+  llvm::json::Array ProcessedSnippets;
   for (std::string line; std::getline(bhive_csv_file, line);) {
     std::cout << "Working on file " << std::dec << file_counter << "\n";
     auto comma_index = line.find(',');
@@ -128,37 +134,38 @@ int main(int argc, char* argv[]) {
       continue;
     }
 
-    // Create output file path.
-    std::string output_file_path =
-        output_dir + "/" + std::to_string(file_counter) + ".test";
-
-    // Open output file for writing.
-    std::ofstream output_file(output_file_path);
-    if (!output_file.is_open()) {
-      std::cerr << "Failed to open output file: " << output_file_path << "\n";
-      return 4;
-    }
-
-    // Write the register definition lines into the output file.
-    output_file << register_defs_lines;
-
-    // Multiple mappings can point to the same definition.
+    llvm::json::Object CurrentSnippet;
     if (addrs->accessed_blocks.size() > 0) {
-      output_file << kMemDefPrefix << kMemNamePrefix << " " << addrs->block_size
-                  << " " << "0000000012345600" << "\n";
-    }
-    for (const auto& addr : addrs->accessed_blocks) {
-      output_file << kMemMapPrefix << kMemNamePrefix << " " << std::dec << addr
-                  << "\n";
-    }
+      llvm::json::Array MemoryDefinitions;
+      llvm::json::Object CurrentMemoryDefinition;
+      CurrentMemoryDefinition["Name"] = llvm::json::Value(kMemNamePrefix);
+      CurrentMemoryDefinition["Size"] = llvm::json::Value(addrs->block_size);
+      CurrentMemoryDefinition["Value"] = llvm::json::Value("000000000012345600");
+      MemoryDefinitions.push_back(llvm::json::Value(std::move(CurrentMemoryDefinition)));
+      CurrentSnippet["MemoryDefinitions"] = llvm::json::Value(std::move(MemoryDefinitions));
 
-    // Append disassembled instructions.
-    for (const auto& instr : proto->machine_instructions()) {
-      output_file << instr.assembly() << "\n";
+      llvm::json::Array MemoryMappings;
+      for (const uintptr_t addr : addrs->accessed_blocks) {
+        llvm::json::Object CurrentMemoryMapping;
+        CurrentMemoryMapping["Value"] = llvm::json::Value(kMemNamePrefix);
+        CurrentMemoryMapping["Address"] = llvm::json::Value(addr);
+        MemoryMappings.push_back(std::move(CurrentMemoryMapping));
+      }
+      CurrentSnippet["MemoryMappings"] = llvm::json::Value(std::move(MemoryMappings));
+    } else {
+      CurrentSnippet["MemoryDefinitions"] = llvm::json::Array();
+      CurrentSnippet["MemoryMappings"] = llvm::json::Array();
     }
+    std::string HexString = {hex.begin(), hex.end()};
+    CurrentSnippet["Hex"] = llvm::json::Value(HexString);
+
+    ProcessedSnippets.push_back(llvm::json::Value(std::move(CurrentSnippet)));
 
     std::cout << "Just finished writing all annotations for a snippet\n";
 
     file_counter++;
   }
+  std::error_code FileEC;
+  llvm::raw_fd_ostream OutputFile("/tmp/test.json", FileEC);
+  OutputFile << llvm::formatv("{0:2}", llvm::json::Value(std::move(ProcessedSnippets))).str();
 }
