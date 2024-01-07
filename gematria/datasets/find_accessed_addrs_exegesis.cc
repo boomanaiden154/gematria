@@ -133,13 +133,15 @@ Expected<AccessedAddrs> ExegesisAnnotator::FindAccessedAddrs(
     handleAllErrors(std::move(std::get<0>(BenchmarkResultOrErr)),
                     [&](SnippetSegmentationFault &CrashInfo) {
                       MemoryMapping MemMap;
-                      MemMap.Address = (CrashInfo.getAddress() / 4096) * 4096;
+                      uintptr_t NewAddress = (CrashInfo.getAddress() / 4096) * 4096;
+                      MemMap.Address = NewAddress;
 		      std::cout << "Mapping address: " << std::hex << MemMap.Address << "\n";
                       MemMap.MemoryValueName = "memdef1";
                       BenchCode.Key.MemoryMappings.push_back(MemMap);
                     });
 
-     if (BenchCode.Key.MemoryMappings.back().Address > 0x0000700000000000) {
+    uintptr_t BackAddress = BenchCode.Key.MemoryMappings.back().Address;
+     if (BackAddress > 0x0000700000000000) {
        std::cout << "Potentially dangerous allocation\n";
        break;
      }
