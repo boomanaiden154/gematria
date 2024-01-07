@@ -42,6 +42,8 @@ constexpr std::string_view kMemDefPrefix = "# LLVM-EXEGESIS-MEM-DEF ";
 constexpr std::string_view kMemMapPrefix = "# LLVM-EXEGESIS-MEM-MAP ";
 constexpr std::string_view kMemNamePrefix = "MEM";
 
+constexpr uint64_t kSnippetSplitting = 100;
+
 namespace {
 unsigned int file_counter = 0;
 }
@@ -164,8 +166,19 @@ int main(int argc, char* argv[]) {
     std::cout << "Just finished writing all annotations for a snippet\n";
 
     file_counter++;
+
+    if (file_counter % kSnippetSplitting == 0) {
+      size_t FileNumber = file_counter / kSnippetSplitting;
+      std::string OutputFileName = "/tmp/test/snippets" + std::to_string(FileNumber) + ".json";
+      std::error_code FileEC;
+      llvm::raw_fd_ostream OutputFile(OutputFileName, FileEC);
+      OutputFile << llvm::formatv("{0:2}", llvm::json::Value(std::move(ProcessedSnippets))).str();
+      ProcessedSnippets.clear();
+    }
   }
+  size_t FileNumber = file_counter / kSnippetSplitting;
+  std::string OutputFileName = "/tmp/test/snippets" + std::to_string(FileNumber) + ".json";
   std::error_code FileEC;
-  llvm::raw_fd_ostream OutputFile("/tmp/test.json", FileEC);
+  llvm::raw_fd_ostream OutputFile(OutputFileName, FileEC);
   OutputFile << llvm::formatv("{0:2}", llvm::json::Value(std::move(ProcessedSnippets))).str();
 }
