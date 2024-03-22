@@ -132,6 +132,34 @@ bool WriteJsonFile(llvm::json::Array to_write, size_t json_file_number,
   return true;
 }
 
+struct AnnotatedBlock {
+  gematria::AccessedAddrs accessed_addresses;
+  gematria::BasicBlockProto basic_block_proto;
+};
+
+absl::StatusOr<AnnotatedBlock> AnnotateBasicBlock(std::string_view basic_block_hex,
+    gematria::BHiveImporter &bhive_importer, gematria::ExegesisAnnotator* exegesis_annotator) {
+  auto bytes = gematria::ParseHexString(basic_block_hex);
+  if (!bytes.has_value())
+    return absl::InvalidArgumentError(Twine("Could not parse ").concat(basic_block_hex).str());
+
+  auto proto = bhive_importer.BasicBlockProtoFromMachineCode(*bytes);
+
+  if (!proto.ok())
+    return proto.status();
+
+  auto addrs = GetAccessedAddrs(*bytes, exegesis_annotator);
+
+  if (!addrs.ok())
+    return addrs.status();
+
+  AnnotatedBlock annotated_block;
+  annotated_block.accessed_addresses = std::move(*addrs);
+  annotated_block.basic_block_proto = std::move(*proto);
+  
+  return std::move(annotated_block);
+}
+
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
