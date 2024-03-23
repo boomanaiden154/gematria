@@ -186,6 +186,58 @@ absl::StatusOr<AnnotatedBlock> AnnotateBasicBlock(
   return std::move(annotated_block);
 }
 
+absl::Status WriteAsmOutput(const AnnotatedBlock& annotated_block,
+                            llvm::StringRef asm_output_dir,
+                            unsigned int file_counter,
+                            const llvm::MCRegisterInfo& reg_info,
+                            std::string_view initial_mem_val_str,
+                            std::string_view initial_reg_val_str) {
+  // Create output file path.
+  llvm::Twine output_file_path = llvm::Twine(asm_output_dir)
+                                     .concat("/")
+                                     .concat(llvm::Twine(file_counter))
+                                     .concat(".test");
+
+  // Open output file for writing.
+  std::ofstream output_file(output_file_path.str());
+  if (!output_file.is_open()) {
+    return absl::InvalidArgumentError(Twine("Failed to open output file: ")
+                                          .concat(output_file_path)
+                                          .concat("\n")
+                                          .str());
+  }
+
+  // Write registers to the output file.
+  for (const auto register_id : annotated_block.used_registers) {
+    output_file << kRegDefPrefix << reg_info.getName(register_id) << " "
+                << initial_reg_val_str << "\n";
+  }
+
+  // Multiple mappings can point to the same definition.
+  if (annotated_block.accessed_addrs.accessed_blocks.size() > 0) {
+    output_file << kMemDefPrefix << kMemNamePrefix << " "
+                << annotated_block.accessed_addrs.block_size << " "
+                << initial_mem_val_str << "\n";
+  }
+  for (const auto& addr : annotated_block.accessed_addrs.accessed_blocks) {
+    output_file << kMemMapPrefix << kMemNamePrefix << " " << std::dec << addr
+                << "\n";
+  }
+
+  // Write the loop register annotation, assuming we were able to find one.
+  if (annotated_block.loop_register)
+    output_file << kLoopRegisterPrefix
+                << reg_info.getName(*annotated_block.loop_register) << "\n";
+
+  // Append disassembled instructions.
+  for (const auto& instr :
+       annotated_block.basic_block_proto.machine_instructions()) {
+    output_file << instr.assembly() << "\n";
+  }
+
+  return absl::OkStatus();
+}
+
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
@@ -212,6 +264,7 @@ int main(int argc, char* argv[]) {
       gematria::ConvertHexToString(kInitialRegVal);
   std::string initial_mem_val_str =
       gematria::ConvertHexToString(kInitialMemVal);
+
   // Prefix the string with zeroes as llvm-exegesis assumes the bit width
   // of the memory value based on the number of characters in the string.
   if (kInitialMemValBitWidth > initial_mem_val_str.size() * 4)
@@ -268,8 +321,9 @@ int main(int argc, char* argv[]) {
 
     std::string_view hex = std::string_view(line).substr(0, comma_index);
 
-    auto annotated_block = AnnotateBasicBlock(hex, bhive_importer,
-        exegesis_annotator.get(), *llvm_support, *inst_printer);
+    auto annotated_block =
+        AnnotateBasicBlock(hex, bhive_importer, exegesis_annotator.get(),
+                           *llvm_support, *inst_printer);
 
     if (!annotated_block.ok()) {
       std::cerr << "Failed to annotate block\n";
@@ -287,44 +341,12 @@ int main(int argc, char* argv[]) {
     }
 
     if (!asm_output_dir.empty()) {
-      // Create output file path.
-      llvm::Twine output_file_path = llvm::Twine(asm_output_dir)
-                                         .concat("/")
-                                         .concat(llvm::Twine(file_counter))
-                                         .concat(".test");
-
-      // Open output file for writing.
-      std::ofstream output_file(output_file_path.str());
-      if (!output_file.is_open()) {
-        std::cerr << "Failed to open output file: " << output_file_path.str()
-                  << "\n";
-        return 4;
-      }
-
-      // Write registers to the output file.
-      for (const auto register_id : annotated_block->used_registers) {
-        output_file << kRegDefPrefix << reg_info.getName(register_id) << " "
-                    << initial_reg_val_str << "\n";
-      }
-
-      // Multiple mappings can point to the same definition.
-      if (annotated_block->accessed_addrs.accessed_blocks.size() > 0) {
-        output_file << kMemDefPrefix << kMemNamePrefix << " "
-                    << annotated_block->accessed_addrs.block_size << " " << initial_mem_val_str << "\n";
-      }
-      for (const auto& addr : annotated_block->accessed_addrs.accessed_blocks) {
-        output_file << kMemMapPrefix << kMemNamePrefix << " " << std::dec
-                    << addr << "\n";
-      }
-
-      // Write the loop register annotation, assuming we were able to find one.
-      if (annotated_block->loop_register)
-        output_file << kLoopRegisterPrefix << reg_info.getName(*annotated_block->loop_register)
-                    << "\n";
-
-      // Append disassembled instructions.
-      for (const auto& instr : annotated_block->basic_block_proto.machine_instructions()) {
-        output_file << instr.assembly() << "\n";
+      absl::Status asm_output_error =
+          WriteAsmOutput(*annotated_block, asm_output_dir, file_counter,
+                         reg_info, initial_mem_val_str, initial_reg_val_str);
+      if (!asm_output_error.ok()) {
+        std::cerr << "Failed to write block to file\n";
+        return 2;
       }
     }
 
@@ -351,14 +373,16 @@ int main(int argc, char* argv[]) {
         llvm::json::Array memory_definitions;
         llvm::json::Object current_memory_definition;
         current_memory_definition["Name"] = llvm::json::Value(kMemNamePrefix);
-        current_memory_definition["Size"] = annotated_block->accessed_addrs.block_size;
+        current_memory_definition["Size"] =
+            annotated_block->accessed_addrs.block_size;
         current_memory_definition["Value"] = llvm::json::Value(kInitialMemVal);
         memory_definitions.push_back(std::move(current_memory_definition));
         current_snippet["MemoryDefinitions"] =
             llvm::json::Value(std::move(memory_definitions));
 
         llvm::json::Array memory_mappings;
-        for (const uintptr_t addr : annotated_block->accessed_addrs.accessed_blocks) {
+        for (const uintptr_t addr :
+             annotated_block->accessed_addrs.accessed_blocks) {
           llvm::json::Object current_memory_mapping;
           current_memory_mapping["Value"] = llvm::json::Value(kMemNamePrefix);
           current_memory_mapping["Address"] = addr;
