@@ -139,6 +139,53 @@ bool WriteJsonFile(llvm::json::Array to_write, size_t json_file_number,
   return true;
 }
 
+struct AnnotatedBlock {
+  gematria::AccessedAddrs accessed_addresses;
+  gematria::BasicBlockProto basic_block_proto;
+  std::vector<unsigned> used_registers;
+  std::optional<unsigned> loop_register;
+};
+
+absl::StatusOr<AnnotatedBlock> AnnotateBasicBlock(
+    std::string_view basic_block_hex, gematria::BHiveImporter& bhive_importer,
+    gematria::ExegesisAnnotator* exegesis_annotator,
+    gematria::LlvmArchitectureSupport& llvm_support,
+    llvm::MCInstPrinter& inst_printer) {
+  auto bytes = gematria::ParseHexString(basic_block_hex);
+  if (!bytes.has_value())
+    return absl::InvalidArgumentError(
+        Twine("Could not parse ").concat(basic_block_hex).str());
+
+  llvm::Expected<std::vector<gematria::DisassembledInstruction>> instructions =
+      gematria::DisassembleAllInstructions(
+          llvm_support.mc_disassembler(), llvm_support.mc_instr_info(),
+          llvm_support.mc_register_info(), llvm_support.mc_subtarget_info(),
+          inst_printer, 0, *bytes);
+
+  if (!instructions) {
+    return absl::InvalidArgumentError(
+        Twine("Failed to disassemble block ").concat(basic_block_hex).str());
+  }
+
+  auto proto = bhive_importer.BasicBlockProtoFromInstructions(*instructions);
+
+  auto addrs = GetAccessedAddrs(*bytes, exegesis_annotator);
+
+  if (!addrs.ok()) return addrs.status();
+
+  AnnotatedBlock annotated_block;
+  annotated_block.accessed_addresses = std::move(*addrs);
+  annotated_block.basic_block_proto = std::move(proto);
+  annotated_block.used_registers =
+      gematria::getUsedRegisters(*instructions, llvm_support.mc_register_info(),
+                                 llvm_support.mc_instr_info());
+  annotated_block.loop_register =
+      gematria::getLoopRegister(*instructions, llvm_support.mc_register_info(),
+                                llvm_support.mc_instr_info());
+
+  return std::move(annotated_block);
+}
+
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
