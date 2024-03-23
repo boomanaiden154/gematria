@@ -2,7 +2,7 @@
 
 ; RUN: split-file %s %t
 ; RUN: mkdir %t.asmdir
-; RUN: %convert_bhive_to_llvm_exegesis_input --asm_output_dir=%t.asmdir --bhive_csv=%t/test.csv --max_bb_count=1
+; RUN: %convert_bhive_to_llvm_exegesis_input --asm_output_dir=%t.asmdir --bhive_csv=%t/test.csv --max_bb_count=1 --annotator_implementation=exegesis
 ; RUN: ls %t.asmdir | FileCheck %s
 
 ; CHECK: 0.test

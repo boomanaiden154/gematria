@@ -3,12 +3,13 @@
 
 ; RUN: split-file %s %t
 ; RUN: mkdir %t.jsondir
-; RUN: %convert_bhive_to_llvm_exegesis_input --json_output_dir=%t.jsondir --bhive_csv=%t/test.csv
+; RUN: %convert_bhive_to_llvm_exegesis_input --json_output_dir=%t.jsondir --bhive_csv=%t/test.csv --annotator_implementation=exegesis
 ; RUN: cat %t.jsondir/0.json | FileCheck %s
 
 ; CHECK: [
 ; CHECK:   {
 ; CHECK:     "Hex": "3b31",
+; CHECK:     "LoopRegister": 51,
 ; CHECK:     "MemoryDefinitions": [
 ; CHECK:       {
 ; CHECK:         "Name": "MEM",
@@ -18,7 +19,7 @@
 ; CHECK:     ],
 ; CHECK:     "MemoryMappings": [
 ; CHECK:       {
-; CHECK:         "Address": 65536,
+; CHECK:         "Address": 305418240,
 ; CHECK:         "Value": "MEM"
 ; CHECK:       }
 ; CHECK:     ],

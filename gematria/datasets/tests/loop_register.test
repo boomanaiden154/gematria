@@ -4,7 +4,7 @@
 
 ; RUN: split-file %s %t
 ; RUN: mkdir %t.asmdir
-; RUN: %convert_bhive_to_llvm_exegesis_input --asm_output_dir=%t.asmdir --bhive_csv=%t/test.csv 2>&1 | FileCheck %s --check-prefix CONVERTER-OUTPUT
+; RUN: %convert_bhive_to_llvm_exegesis_input --asm_output_dir=%t.asmdir --bhive_csv=%t/test.csv --annotator_implementation=exegesis 2>&1 | FileCheck %s --check-prefix CONVERTER-OUTPUT
 ; RUN: ls %t.asmdir | FileCheck %s --check-prefix DEFAULT-DIR
 
 ; DEFAULT-DIR: 0.test
@@ -22,7 +22,7 @@
 ; basic blocks, even if a loop register cannot be found.
 
 ; RUN: rm %t.asmdir/*.test
-; RUN: %convert_bhive_to_llvm_exegesis_input --asm_output_dir=%t.asmdir --bhive_csv=%t/test.csv --skip_no_loop_register=false
+; RUN: %convert_bhive_to_llvm_exegesis_input --asm_output_dir=%t.asmdir --bhive_csv=%t/test.csv --skip_no_loop_register=false --annotator_implementation=exegesis
 ; RUN: ls %t.asmdir | FileCheck %s --check-prefix NO-SKIP-DIR
 
 ; NO-SKIP-DIR: 0.test
@@ -38,7 +38,7 @@
 ; register number, or null if there is no available loop register.
 
 ; RUN: mkdir %t.jsondir
-; RUN: %convert_bhive_to_llvm_exegesis_input --json_output_dir=%t.jsondir --bhive_csv=%t/test.csv --skip_no_loop_register=false --blocks_per_json_file=1
+; RUN: %convert_bhive_to_llvm_exegesis_input --json_output_dir=%t.jsondir --bhive_csv=%t/test.csv --skip_no_loop_register=false --blocks_per_json_file=1 --annotator_implementation=exegesis
 ; cat %t.jsondir/0.json | FileCheck %s --check-prefix JSON0
 ; cat %t.jsondir/1.json | FileCheck %s --check-prefix JSON1
 
