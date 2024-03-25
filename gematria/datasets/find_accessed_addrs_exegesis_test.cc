@@ -73,8 +73,10 @@ class FindAccessedAddrsExegesisTest : public testing::Test {
       std::string_view TextualAssembly) {
     auto Code = Assemble(TextualAssembly);
     auto Annotator = cantFail(ExegesisAnnotator::create(State));
-    return Annotator->findAccessedAddrs(llvm::ArrayRef(
-        reinterpret_cast<const uint8_t*>(Code.data()), Code.size()));
+    return Annotator->findAccessedAddrs(
+        llvm::ArrayRef(reinterpret_cast<const uint8_t*>(Code.data()),
+                       Code.size()),
+        50);
   }
 };
 
@@ -111,6 +113,37 @@ TEST_F(FindAccessedAddrsExegesisTest, ExegesisNotPageAligned) {
   AccessedAddrs Result = *AddrsOrErr;
   EXPECT_EQ(Result.accessed_blocks.size(), 1);
   EXPECT_EQ(Result.accessed_blocks[0], 0x10000);
+}
+
+TEST_F(FindAccessedAddrsExegesisTest, ExegesisZeroAddressError) {
+  auto AddrsOrErr = FindAccessedAddrsExegesis(R"asm(
+    movq $0x0, %rax
+    movq (%rax), %rax
+  )asm");
+  ASSERT_FALSE(static_cast<bool>(AddrsOrErr));
+}
+
+TEST_F(FindAccessedAddrsExegesisTest, ExegesisMultipleSameAddressError) {
+  // Try and load memory from an address above the current user space address
+  // space ceiling (assuming five level page tables are not enabled) as the
+  // script will currently try and annotate this, but exegesis will fail
+  // to map the address when it attempts to.
+  auto AddrsOrErr = FindAccessedAddrsExegesis(R"asm(
+    movabsq $0x0000800000000000, %rax
+    movq (%rax), %rax
+  )asm");
+  ASSERT_FALSE(static_cast<bool>(AddrsOrErr));
+}
+
+// This test is disabled due to taking ~20 seconds to run.
+// TODO(boomanaiden154): Make this test run as part of an "expensive checks"
+// configuration.
+TEST_F(FindAccessedAddrsExegesisTest, DISABLED_QuitMaxAnnotationAttempts) {
+  auto AddrsOrErr = FindAccessedAddrsExegesis(R"asm(
+    movq (%rax), %rdx
+    addq $0x1000, %rax
+  )asm");
+  ASSERT_FALSE(static_cast<bool>(AddrsOrErr));
 }
 
 }  // namespace

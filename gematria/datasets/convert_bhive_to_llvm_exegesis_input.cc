@@ -102,10 +102,14 @@ ABSL_FLAG(bool, skip_no_loop_register, true,
           "cannot be found.");
 ABSL_FLAG(unsigned, max_threads, llvm::thread::hardware_concurrency(),
           "The number of threads to use in parallel for annotating snippets");
+ABSL_FLAG(unsigned, max_annotation_attempts, 50,
+          "The maximum number of times to attempt to annotate a block before "
+          "giving up.");
 
 absl::StatusOr<gematria::AccessedAddrs> GetAccessedAddrs(
     absl::Span<const uint8_t> basic_block,
-    gematria::ExegesisAnnotator* exegesis_annotator) {
+    gematria::ExegesisAnnotator* exegesis_annotator,
+    const unsigned max_annotation_attempts) {
   const AnnotatorType annotator_implementation =
       absl::GetFlag(FLAGS_annotator_implementation);
   switch (annotator_implementation) {
@@ -115,7 +119,8 @@ absl::StatusOr<gematria::AccessedAddrs> GetAccessedAddrs(
     case AnnotatorType::kExegesis:
       return gematria::LlvmExpectedToStatusOr(
           exegesis_annotator->findAccessedAddrs(
-              llvm::ArrayRef(basic_block.begin(), basic_block.end())));
+              llvm::ArrayRef(basic_block.begin(), basic_block.end()),
+              max_annotation_attempts));
     case AnnotatorType::kNone:
       return gematria::AccessedAddrs();
   }
@@ -365,11 +370,17 @@ int main(int argc, char* argv[]) {
   const unsigned max_bb_count = absl::GetFlag(FLAGS_max_bb_count);
   const unsigned report_progress_every =
       absl::GetFlag(FLAGS_report_progress_every);
+<<<<<<< HEAD
   const bool skip_no_loop_register = absl::GetFlag(FLAGS_skip_no_loop_register);
   unsigned int loop_register_failures = 0;
 
   std::vector<std::string> basic_block_hex_values;
 
+=======
+  const unsigned max_annotation_attempts =
+      absl::GetFlag(FLAGS_max_annotation_attempts);
+  unsigned int file_counter = 0;
+>>>>>>> users/boomanaiden154/error-limit-annotations-exegesis-annotator
   for (std::string line; std::getline(bhive_csv_file, line);) {
     if (basic_block_hex_values.size() >= max_bb_count) break;
 
@@ -381,7 +392,111 @@ int main(int argc, char* argv[]) {
 
     std::string_view hex = std::string_view(line).substr(0, comma_index);
 
+<<<<<<< HEAD
     basic_block_hex_values.push_back(std::string(hex));
+=======
+    auto proto = bhive_importer.BasicBlockProtoFromMachineCode(*bytes);
+
+    // Check for errors.
+    if (!proto.ok()) {
+      std::cerr << "Failed to disassemble block '" << hex
+                << "': " << proto.status() << "\n";
+      continue;
+    }
+
+    auto addrs = GetAccessedAddrs(*bytes, exegesis_annotator.get(),
+                                  max_annotation_attempts);
+
+    if (!addrs.ok()) {
+      std::cerr << "Failed to find addresses for block '" << hex
+                << "': " << addrs.status() << "\n";
+      std::cerr << "Block disassembly:\n";
+      for (const auto& instr : proto->machine_instructions()) {
+        std::cerr << "\t" << instr.assembly() << "\n";
+      }
+      continue;
+    }
+
+    if (!asm_output_dir.empty()) {
+      // Create output file path.
+      llvm::Twine output_file_path = llvm::Twine(asm_output_dir)
+                                         .concat("/")
+                                         .concat(llvm::Twine(file_counter))
+                                         .concat(".test");
+
+      // Open output file for writing.
+      std::ofstream output_file(output_file_path.str());
+      if (!output_file.is_open()) {
+        std::cerr << "Failed to open output file: " << output_file_path.str()
+                  << "\n";
+        return 4;
+      }
+
+      // Write the register definition lines into the output file.
+      output_file << register_defs_lines;
+
+      // Multiple mappings can point to the same definition.
+      if (addrs->accessed_blocks.size() > 0) {
+        output_file << kMemDefPrefix << kMemNamePrefix << " "
+                    << addrs->block_size << " " << initial_mem_val_str << "\n";
+      }
+      for (const auto& addr : addrs->accessed_blocks) {
+        output_file << kMemMapPrefix << kMemNamePrefix << " " << std::dec
+                    << addr << "\n";
+      }
+
+      // Append disassembled instructions.
+      for (const auto& instr : proto->machine_instructions()) {
+        output_file << instr.assembly() << "\n";
+      }
+    }
+
+    if (!json_output_dir.empty()) {
+      llvm::json::Object current_snippet;
+
+      if (addrs->accessed_blocks.size() > 0) {
+        llvm::json::Array memory_definitions;
+        llvm::json::Object current_memory_definition;
+        current_memory_definition["Name"] = llvm::json::Value(kMemNamePrefix);
+        current_memory_definition["Size"] = addrs->block_size;
+        current_memory_definition["Value"] = llvm::json::Value(kInitialMemVal);
+        memory_definitions.push_back(std::move(current_memory_definition));
+        current_snippet["MemoryDefinitions"] =
+            llvm::json::Value(std::move(memory_definitions));
+
+        llvm::json::Array memory_mappings;
+        for (const uintptr_t addr : addrs->accessed_blocks) {
+          llvm::json::Object current_memory_mapping;
+          current_memory_mapping["Value"] = llvm::json::Value(kMemNamePrefix);
+          current_memory_mapping["Address"] = addr;
+          memory_mappings.push_back(std::move(current_memory_mapping));
+        }
+        current_snippet["MemoryMappings"] =
+            llvm::json::Value(std::move(memory_mappings));
+      } else {
+        current_snippet["MemoryDefinitions"] = llvm::json::Array();
+        current_snippet["MemoryMappings"] = llvm::json::Array();
+      }
+
+      current_snippet["Hex"] = std::string(hex);
+
+      processed_snippets.push_back(
+          llvm::json::Value(std::move(current_snippet)));
+
+      if ((file_counter + 1) % blocks_per_json_file == 0) {
+        size_t json_file_number = file_counter / blocks_per_json_file;
+        bool write_successfully = WriteJsonFile(
+            std::move(processed_snippets), json_file_number, json_output_dir);
+        if (!write_successfully) return 4;
+        processed_snippets.clear();
+      }
+    }
+
+    if (file_counter != 0 && file_counter % report_progress_every == 0)
+      std::cerr << "Finished annotating block #" << file_counter << ".\n";
+
+    file_counter++;
+>>>>>>> users/boomanaiden154/error-limit-annotations-exegesis-annotator
   }
 
   std::mutex io_mutex;
