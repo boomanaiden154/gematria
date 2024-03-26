@@ -194,7 +194,40 @@ llvm::json::Value GetJSONForSnippet(const AnnotatedBlock& annotated_block,
   for (const auto register_id : annotated_block.used_registers) {
     llvm::json::Object current_register_definition;
     current_register_definition["Register"] = register_id;
-    current_register_definition["Value"] = kInitialRegVal;
+    int64_t register_value = kInitialRegVal;
+    if (register_id == X86::RAX)
+      register_value = annotated_block.accessed_addrs.initial_regs.rax;
+    else if (register_id == X86::RCX)
+      register_value = annotated_block.accessed_addrs.initial_regs.rcx;
+    else if (register_id == X86::RDX)
+      register_value = annotated_block.accessed_addrs.initial_regs.rdx;
+    else if (register_id == X86::RBX)
+      register_value = annotated_block.accessed_addrs.initial_regs.rbx;
+    else if (register_id == X86::RSI)
+      register_value = annotated_block.accessed_addrs.initial_regs.rsi;
+    else if (register_id == X86::RDI)
+      register_value = annotated_block.accessed_addrs.initial_regs.rdi;
+    else if (register_id == X86::RSP)
+      register_value = annotated_block.accessed_addrs.initial_regs.rsp;
+    else if (register_id == X86::RBP)
+      register_value = annotated_block.accessed_addrs.initial_regs.rbp;
+    else if (register_id == X86::R8)
+      register_value = annotated_block.accessed_addrs.initial_regs.r8;
+    else if (register_id == X86::R9)
+      register_value = annotated_block.accessed_addrs.initial_regs.r9;
+    else if (register_id == X86::R10)
+      register_value = annotated_block.accessed_addrs.initial_regs.r10;
+    else if (register_id == X86::R11)
+      register_value = annotated_block.accessed_addrs.initial_regs.r11;
+    else if (register_id == X86::R12)
+      register_value = annotated_block.accessed_addrs.initial_regs.r12;
+    else if (register_id == X86::R13)
+      register_value = annotated_block.accessed_addrs.initial_regs.r13;
+    else if (register_id == X86::R14)
+      register_value = annotated_block.accessed_addrs.initial_regs.r14;
+    else if (register_id == X86::R15)
+      register_value = annotated_block.accessed_addrs.initial_regs.r15;
+    current_register_definition["Value"] = register_value;
     register_definitions.push_back(std::move(current_register_definition));
   }
   current_snippet["RegisterDefinitions"] =
