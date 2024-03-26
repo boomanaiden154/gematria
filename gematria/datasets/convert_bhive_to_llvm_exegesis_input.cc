@@ -44,8 +44,8 @@
 // underflow and accesses within the first page, but low enough to avoid
 // exceeding the virtual address space ceiling in most cases.
 constexpr uint64_t kInitialRegVal = 0x12345600;
-constexpr uint64_t kInitialMemVal = 0x12345600;
-constexpr unsigned kInitialMemValBitWidth = 64;
+constexpr uint64_t kInitialMemVal = 0x00000008;
+constexpr unsigned kInitialMemValBitWidth = 32;
 constexpr std::string_view kRegDefPrefix = "# LLVM-EXEGESIS-DEFREG ";
 constexpr std::string_view kMemDefPrefix = "# LLVM-EXEGESIS-MEM-DEF ";
 constexpr std::string_view kMemMapPrefix = "# LLVM-EXEGESIS-MEM-MAP ";
@@ -260,8 +260,43 @@ absl::Status WriteAsmOutput(const AnnotatedBlock& annotated_block,
 
   // Write registers to the output file.
   for (const auto register_id : annotated_block.used_registers) {
+    int64_t register_value = kInitialRegVal;
+    if (register_id == X86::RAX)
+      register_value = annotated_block.accessed_addrs.initial_regs.rax;
+    else if (register_id == X86::RCX)
+      register_value = annotated_block.accessed_addrs.initial_regs.rcx;
+    else if (register_id == X86::RDX)
+      register_value = annotated_block.accessed_addrs.initial_regs.rdx;
+    else if (register_id == X86::RBX)
+      register_value = annotated_block.accessed_addrs.initial_regs.rbx;
+    else if (register_id == X86::RSI)
+      register_value = annotated_block.accessed_addrs.initial_regs.rsi;
+    else if (register_id == X86::RDI)
+      register_value = annotated_block.accessed_addrs.initial_regs.rdi;
+    else if (register_id == X86::RSP)
+      register_value = annotated_block.accessed_addrs.initial_regs.rsp;
+    else if (register_id == X86::RBP)
+      register_value = annotated_block.accessed_addrs.initial_regs.rbp;
+    else if (register_id == X86::R8)
+      register_value = annotated_block.accessed_addrs.initial_regs.r8;
+    else if (register_id == X86::R9)
+      register_value = annotated_block.accessed_addrs.initial_regs.r9;
+    else if (register_id == X86::R10)
+      register_value = annotated_block.accessed_addrs.initial_regs.r10;
+    else if (register_id == X86::R11)
+      register_value = annotated_block.accessed_addrs.initial_regs.r11;
+    else if (register_id == X86::R12)
+      register_value = annotated_block.accessed_addrs.initial_regs.r12;
+    else if (register_id == X86::R13)
+      register_value = annotated_block.accessed_addrs.initial_regs.r13;
+    else if (register_id == X86::R14)
+      register_value = annotated_block.accessed_addrs.initial_regs.r14;
+    else if (register_id == X86::R15)
+      register_value = annotated_block.accessed_addrs.initial_regs.r15;
+    std::string reg_val_str =
+        gematria::ConvertHexToString(register_value);
     output_file << kRegDefPrefix << reg_info.getName(register_id) << " "
-                << initial_reg_val_str << "\n";
+                << reg_val_str << "\n";
   }
 
   // Multiple mappings can point to the same definition.
