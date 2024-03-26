@@ -194,6 +194,10 @@ llvm::json::Value GetJSONForSnippet(const AnnotatedBlock& annotated_block,
   for (const auto register_id : annotated_block.used_registers) {
     llvm::json::Object current_register_definition;
     current_register_definition["Register"] = register_id;
+    // Skip the segment registers other than GS and FS as llvm-exegesis does not
+    // support them.
+    if (register_id == X86::CS || register_id == X86::DS || register_id == X86::ES || register_id == X86::SS)
+      continue;
     int64_t register_value = kInitialRegVal;
     if (register_id == X86::RAX)
       register_value = annotated_block.accessed_addrs.initial_regs.rax;
