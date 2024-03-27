@@ -209,7 +209,7 @@ Expected<unsigned> benchmarkBasicBlock(const BenchmarkCode &BenchCode,
   if (!RC2) return RC2.takeError();
 
   std::pair<Error, Benchmark> BenchmarkResult1OrErr =
-      BenchRunner.runConfiguration(std::move(*RC1), {});
+      BenchRunner.runConfiguration(std::move(*RC1), {}, {});
 
   if (std::get<0>(BenchmarkResult1OrErr))
     return std::move(std::get<0>(BenchmarkResult1OrErr));
@@ -217,7 +217,7 @@ Expected<unsigned> benchmarkBasicBlock(const BenchmarkCode &BenchCode,
   AllResults.push_back(std::move(std::get<1>(BenchmarkResult1OrErr)));
 
   std::pair<Error, Benchmark> BenchmarkResult2OrErr =
-      BenchRunner.runConfiguration(std::move(*RC2), {});
+      BenchRunner.runConfiguration(std::move(*RC2), {}, {});
 
   if (std::get<0>(BenchmarkResult2OrErr))
     return std::move(std::get<0>(BenchmarkResult2OrErr));

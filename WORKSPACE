@@ -165,16 +165,11 @@ new_git_repository(
 
 # LLVM and its dependencies
 
-LLVM_COMMIT = "718fbbef5f18a2b7e7fc4f842b1452ae9bee581a"
-
-LLVM_SHA256 = "e17b455b320e5c09acecadf2fb0f9ce471d6668382569132d2c7f144ca10bafa"
-
-http_archive(
+new_local_repository(
     name = "llvm-raw",
     build_file_content = "# empty",
-    sha256 = LLVM_SHA256,
-    strip_prefix = "llvm-project-" + LLVM_COMMIT,
-    urls = ["https://github.com/llvm/llvm-project/archive/{commit}.zip".format(commit = LLVM_COMMIT)],
+    # Or wherever your submodule is located.
+    path = "/tmp/llvm-project",
 )
 
 load(
