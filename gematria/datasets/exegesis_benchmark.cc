@@ -16,6 +16,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <mutex>
 
 #include "X86.h"
 #include "X86InstrInfo.h"
@@ -27,6 +28,8 @@
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/JSON.h"
+#include "llvm/Support/ThreadPool.h"
+#include "llvm/Support/Threading.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/tools/llvm-exegesis/lib/BenchmarkRunner.h"
@@ -42,6 +45,11 @@ static cl::opt<std::string> AnnotatedBlocksJson(
     "annotated-blocks-json",
     cl::desc("Filename of the JSON file containing annotated basic blocks"),
     cl::init(""));
+
+static cl::opt<unsigned> ThreadCount(
+    "thread-count",
+    cl::desc("The number of threads to use for benchmarking"),
+    cl::init(1));
 
 Expected<BenchmarkCode> parseJSONBlock(
     const json::Object &BasicBlockJSON, MCInstPrinter &MachinePrinter,
@@ -295,6 +303,10 @@ int main(int Argc, char *Argv[]) {
     ExitOnErr(llvm::make_error<StringError>(inconvertibleErrorCode(),
                                             "Failed to initialize libpfm"));
 
+  DefaultThreadPool CurrentThreadPool(hardware_concurrency(ThreadCount));
+
+  std::mutex IOMutex;
+
   for (const auto &AnnotatedBlock : *ParsedAnnotatedBlocks.getAsArray()) {
     const llvm::json::Object *AnnotatedBlockObject =
         AnnotatedBlock.getAsObject();
@@ -306,19 +318,23 @@ int main(int Argc, char *Argv[]) {
     BenchmarkCode BenchCode = ExitOnErr(parseJSONBlock(
         *AnnotatedBlockObject, *MachinePrinter, *MachineDisassembler, State));
 
-    std::unique_ptr<const SnippetRepetitor> SnipRepetitor =
-        SnippetRepetitor::Create(Benchmark::RepetitionModeE::MiddleHalfLoop,
-                                 State, BenchCode.Key.LoopRegister);
-
-    unsigned Throughput100 =
-        ExitOnErr(benchmarkBasicBlock(BenchCode, *Runner, State));
-
     std::optional<StringRef> HexValue = AnnotatedBlockObject->getString("Hex");
     if (!HexValue)
       ExitOnErr(llvm::make_error<StringError>(
           errc::invalid_argument, "Expected basic block to have hex value"));
 
-    outs() << *HexValue << "," << Throughput100 << "\n";
+    CurrentThreadPool.async([&](BenchmarkCode CurrentBenchCode, StringRef CurrentHexValue) {
+      std::unique_ptr<const SnippetRepetitor> SnipRepetitor =
+          SnippetRepetitor::Create(Benchmark::RepetitionModeE::MiddleHalfLoop,
+                                   State, CurrentBenchCode.Key.LoopRegister);
+
+      unsigned Throughput100 =
+          ExitOnErr(benchmarkBasicBlock(CurrentBenchCode, *Runner, State));
+
+      IOMutex.lock();
+      outs() << CurrentHexValue << "," << Throughput100 << "\n";
+      IOMutex.unlock();
+    }, BenchCode, *HexValue);
   }
 
   return 0;
