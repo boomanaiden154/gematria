@@ -316,10 +316,14 @@ int main(int Argc, char *Argv[]) {
         SnippetRepetitor::Create(Benchmark::RepetitionModeE::MiddleHalfLoop,
                                  State, BenchCode.Key.LoopRegister);
 
-    unsigned Throughput100 =
-        ExitOnErr(benchmarkBasicBlock(BenchCode, *Runner, State));
+    Expected<unsigned> Throughput100OrErr = benchmarkBasicBlock(BenchCode, *Runner, State);
 
-    outs() << *HexValue << "," << Throughput100 << "\n";
+    if (!Throughput100OrErr) {
+      dbgs() << "Encountered an error while benchmarking: " << Throughput100OrErr.takeError() << "\n";
+      continue;
+    }
+
+    outs() << *HexValue << "," << *Throughput100OrErr << "\n";
   }
 
   return 0;
