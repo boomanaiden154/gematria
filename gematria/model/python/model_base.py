@@ -45,6 +45,8 @@ import numpy as np
 import scipy.stats
 import tensorflow.compat.v1 as tf
 
+import tf_slim as slim
+
 # The type used for TensorFlow feed_dict objects. The type we use here is
 # simpler than what is actually accepted by TensorFlow, but the typing should be
 # sufficient for our use. Moreover, since TensorFlow and NumPy do not provide
@@ -1344,8 +1346,8 @@ class ModelBase(metaclass=abc.ABCMeta):
           'ModelBase._loss is None while running continuous evaluation.'
       )
     hooks = [
-        tf.contrib.training.StopAfterNEvalsHook(1),
-        tf.contrib.training.SummaryAtEndHook(summary_dir, feed_dict=schedule),
+        slim.evaluation.StopAfterNEvalsHook(1),
+        slim.evaluation.SummaryAtEndHook(summary_dir, feed_dict=schedule),
         # Save the models with the best MAPE.
         SaveBestCheckpoint(
             error_tensor=self._loss.mean_absolute_percentage_error,
@@ -1357,7 +1359,7 @@ class ModelBase(metaclass=abc.ABCMeta):
     if session_hooks:
       hooks.extend(session_hooks)
     logging.info('Starting continuous evaluation.')
-    tf.contrib.training.evaluate_repeatedly(
+    slim.evaluation.evaluate_repeatedly(
         checkpoint_dir,
         master=tf_master,
         eval_ops=[
