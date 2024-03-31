@@ -1,4 +1,4 @@
-load("//:python.bzl", "gematria_py_library", "gematria_py_test", "gematria_pybind_extension")
+load("//:python.bzl", "gematria_py_library", "gematria_py_test", "gematria_pybind_extension", "gematria_py_binary")
 
 package(
     default_visibility = ["//visibility:private"],
@@ -227,4 +227,15 @@ gematria_py_test(
         ":training",
         "//gematria/testing/python:basic_blocks_with_throughput",
     ],
+)
+
+gematria_py_binary(
+    name = "eval",
+    srcs = ["eval.py"],
+    deps = [
+        "//gematria/proto:throughput_py_pb2",
+	"//gematria/io/python:tfrecord",
+	"//gematria/basic_block/python:throughput_protos",
+	"//gematria/basic_block/python:basic_block",
+    ]
 )
