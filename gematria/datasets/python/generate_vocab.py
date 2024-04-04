@@ -52,18 +52,12 @@ def main(_) -> None:
 
   tokens = set()
 
-  current_proto_index = 0
-
   for proto in loaded_protos:
-    if current_proto_index % 1000 == 0:
-      logging.info(f'Just finished proto {current_proto_index}')
     basic_block_proto = basic_block_protos.basic_block_from_proto(
         proto.basic_block
     )
     for instruction in basic_block_proto.instructions:
       tokens.update(instruction.as_token_list())
-
-    current_proto_index += 1
 
   with open(_OUTPUT_TXT_FILE.value, 'w') as output_file_handle:
     for token in tokens:
