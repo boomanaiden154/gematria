@@ -20,8 +20,20 @@ from typing import Type, TypeVar
 from google.protobuf import message
 import tensorflow.compat.v1 as tf
 
+from absl import logging
+import multiprocessing
+from itertools import repeat
+import faster_fifo
+
 Proto = TypeVar('Proto', bound=message.Message)
 
+def parse_individual_file(file_name, proto_class, queue):
+  record_count = 0
+  for raw_record in tf.io.tf_record_iterator(file_name):
+    queue.put(proto_class.FromString(raw_record))
+    if record_count % 1000 == 0:
+      logging.info(f'Just finished {record_count} protos in {file_name}')
+    record_count += 1
 
 def read_protos(
     filenames: Sequence[str], proto_class: Type[Proto]
@@ -48,9 +60,13 @@ def read_protos(
     # us when passing a single file name instead of a collection, we just fix it
     # and do what the user expects.
     filenames = (filenames,)
-  for filename in filenames:
-    for raw_record in tf.io.tf_record_iterator(filename):
-      yield proto_class.FromString(raw_record)
+  with multiprocessing.Pool() as parallel_pool:
+    with multiprocessing.Manager() as parallel_manager:
+      queue = faster_fifo.Queue(1000000)
+      output_future = parallel_pool.starmap_async(parse_individual_file, zip(filenames, repeat(proto_class), repeat(queue)))
+      output_future.get()
+      while not output_future.ready():
+        yield queue.get()
 
 
 def write_protos(filename: str, protos: Iterable[Proto]) -> None:

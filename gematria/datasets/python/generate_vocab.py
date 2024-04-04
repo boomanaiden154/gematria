@@ -28,8 +28,10 @@ from gematria.proto import throughput_pb2
 from gematria.basic_block.python import basic_block_protos
 from gematria.basic_block.python import basic_block
 
-_INPUT_TFRECORD_FILE = flags.DEFINE_string(
-    'input_tfrecord',
+import os
+
+_INPUT_DIR = flags.DEFINE_string(
+    'input_dir',
     None,
     'The path to the tfrecord file to process',
     required=True,
@@ -40,8 +42,12 @@ _OUTPUT_TXT_FILE = flags.DEFINE_string(
 
 
 def main(_) -> None:
+  file_names = []
+  for file_name in os.listdir(_INPUT_DIR.value):
+    file_names.append(os.path.join(_INPUT_DIR.value, file_name))
+
   loaded_protos = tfrecord.read_protos(
-      _INPUT_TFRECORD_FILE.value, throughput_pb2.BasicBlockWithThroughputProto
+      file_names, throughput_pb2.BasicBlockWithThroughputProto
   )
 
   tokens = set()
