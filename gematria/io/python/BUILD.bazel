@@ -37,6 +37,7 @@ gematria_py_library(
     srcs = ["tfrecord.py"],
     visibility = ["//:internal_users"],
     deps = [
+        ":proto_parser",
     ],
 )
 
@@ -78,5 +79,6 @@ gematria_pybind_extension(
     visibility = ["//:internal_users"],
     deps = [
         "//gematria/io:proto_parser",
+        "@com_google_pybind11_protobuf//pybind11_protobuf:native_proto_caster",
     ],
 )

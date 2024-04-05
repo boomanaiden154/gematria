@@ -21,6 +21,7 @@ from google.protobuf import message
 import tensorflow.compat.v1 as tf
 
 from absl import logging
+from gematria.io.python import proto_parser
 
 Proto = TypeVar('Proto', bound=message.Message)
 
@@ -53,11 +54,11 @@ def read_protos(
   total_count = 0
   for filename in filenames:
     raw_records = list(tf.io.tf_record_iterator(filename))
-    for raw_record in raw_records:
+    for parsed_record in proto_parser.parse_raw_data(raw_records):
       if total_count % 10000 == 0:
         logging.info('Just processed 10000')
       total_count += 1
-      yield proto_class.FromString(raw_record)
+      yield parsed_record
 
 
 def write_protos(filename: str, protos: Iterable[Proto]) -> None:

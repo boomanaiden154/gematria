@@ -20,12 +20,19 @@
 #include "gematria/proto/basic_block.pb.h"
 #include "gematria/proto/throughput.pb.h"
 
+#include <iostream>
+
 namespace gematria {
 
 std::vector<BasicBlockWithThroughputProto> ParseRawData(const std::vector<std::string> &Input) {
   std::vector<BasicBlockWithThroughputProto> Output;
   Output.reserve(Input.size());
+  int CurrentIndex = 0;
   for (const std::string &InputString : Input) {
+    if (CurrentIndex % 10000 == 0) {
+      std::cout << "Just finished parsing 10000\n";
+    }
+    ++CurrentIndex;
     BasicBlockWithThroughputProto ToAdd;
     ToAdd.ParseFromString(InputString);
     Output.push_back(std::move(ToAdd));

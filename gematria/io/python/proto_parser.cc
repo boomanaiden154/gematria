@@ -14,12 +14,22 @@
 
 #include "gematria/io/proto_parser.h"
 
+#define PYBIND11_PROTOBUF_ASSUME_FULL_ABI_COMPATIBILITY
+
+#include "pybind11/pybind11.h"
+#include "pybind11/stl.h"
+#include "pybind11_protobuf/native_proto_caster.h"
+
 namespace gematria {
 
-using py = ::pybind11;
+namespace py = ::pybind11;
 
 PYBIND11_MODULE(proto_parser, m) {
+  pybind11_protobuf::ImportNativeProtoCasters();
+
   m.doc() = "A proto parser";
+
+  m.def("parse_raw_data", &ParseRawData, py::arg("Input"), "documentation"); 
 }
 
 } // namespace gematria
