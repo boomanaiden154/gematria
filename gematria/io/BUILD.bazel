@@ -1,3 +1,15 @@
 package(
     default_visibility = ["//visibility:private"],
 )
+
+cc_library(
+    name = "proto_parser",
+    srcs = ["proto_parser.cc"],
+    hdrs = ["proto_parser.h"],
+    visibility = ["//:internal_users"],
+    deps = [
+        "//gematria/basic_block:basic_block_protos",
+        "//gematria/proto:basic_block_cc_proto",
+        "//gematria/proto:throughput_cc_proto",
+    ],
+)
