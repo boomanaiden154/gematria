@@ -22,6 +22,7 @@ import tensorflow.compat.v1 as tf
 
 Proto = TypeVar('Proto', bound=message.Message)
 
+from absl import logging
 
 def read_protos(
     filenames: Sequence[str], proto_class: Type[Proto]
@@ -48,8 +49,12 @@ def read_protos(
     # us when passing a single file name instead of a collection, we just fix it
     # and do what the user expects.
     filenames = (filenames,)
+  total_count = 0
   for filename in filenames:
     for raw_record in tf.io.tf_record_iterator(filename):
+      if total_count % 10000 == 0:
+        logging.info(f'Just finished 10000, have done {total_count}')
+      total_count += 1
       yield proto_class.FromString(raw_record)
 
 

@@ -723,32 +723,7 @@ def _make_basic_block_reader_from_command_line_flags(
   protos = tfrecord.read_protos(
       input_files, throughput_pb2.BasicBlockWithThroughputProto
   )
-  return utils.apply_filters(protos, proto_filters)
-
-
-def _extract_basic_blocks_with_throughput(
-    model: model_base.ModelBase,
-    protos: Iterable[throughput_pb2.BasicBlockWithThroughputProto],
-) -> Iterable[throughput.BasicBlockWithThroughput]:
-  """Parses basic block data from a stream of protos.
-
-  Removes invalid basic blocks if this is requested by command-line flags.
-
-  Args:
-    model: The Gematria model for which the basic blocks are loaded.
-    protos: A stream of basic block protos with throughput. The stream will be
-      iterated over only once.
-
-  Yields:
-    Parsed basic block data for the input protos. Yields one basic block with
-    throughput for each proto from the input stream that passes validation by
-    the model.
-  """
-  keep_all_blocks = not _DROP_INVALID_BLOCKS.value
-  for proto in protos:
-    block = throughput_protos.block_with_throughput_from_proto(proto)
-    if keep_all_blocks or model.validate_basic_block_with_throughput(block):
-      yield block
+  return protos
 
 
 def _session_from_checkpoint(checkpoint_file: str) -> tf.Session:
@@ -837,17 +812,13 @@ def run_gematria_model_from_command_line_flags(
           basic_block_protos = _make_basic_block_reader_from_command_line_flags(
               input_files, _THROUGHPUT_SOURCE_FILTERS.value
           )
-          blocks_with_throughput = _extract_basic_blocks_with_throughput(
-              model, basic_block_protos
-          )
         else:
           basic_block_protos = None
-          blocks_with_throughput = None
       max_instructions_in_batch = _GEMATRIA_MAX_INSTRUCTIONS_IN_BATCH.value
       if _ACTION.value == model_options.Action.EVAL:
         session_hooks = None
         model.run_continuous_evaluation(
-            tuple(blocks_with_throughput),
+            tuple(basic_block_protos),
             _CHECKPOINT_DIR.value,
             _GEMATRIA_SUMMARY_DIR.value,
             tf_master=_MASTER.value,
@@ -899,7 +870,7 @@ def run_gematria_model_from_command_line_flags(
             )
             model.train(
                 session,
-                tuple(blocks_with_throughput),
+                tuple(basic_block_protos),
                 max_blocks_in_batch=_GEMATRIA_MAX_BLOCKS_IN_BATCH.value,
                 max_instructions_in_batch=max_instructions_in_batch,
                 num_epochs=_GEMATRIA_TRAINING_NUM_EPOCHS.value,

@@ -102,6 +102,7 @@ gematria_py_library(
         ":training",
         "//gematria/basic_block/python:basic_block",
         "//gematria/basic_block/python:throughput",
+	"//gematria/basic_block/python:basic_block_protos",
         "//gematria/utils/python:timer",
     ],
 )

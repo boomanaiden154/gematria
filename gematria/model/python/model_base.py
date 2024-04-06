@@ -37,6 +37,7 @@ from typing import Optional, TypeVar, Union
 from absl import logging
 from gematria.basic_block.python import basic_block
 from gematria.basic_block.python import throughput
+from gematria.basic_block.python import basic_block_protos
 from gematria.model.python import loss_utils
 from gematria.model.python import options
 from gematria.model.python import training
@@ -1197,9 +1198,7 @@ class ModelBase(metaclass=abc.ABCMeta):
     # The input is a sequence that that contains either only basic blocks with
     # throughputs or only basic blocks without throughputs. We can determine
     # which case it is by looking at the first block of the sequence.
-    has_throughputs = isinstance(
-        basic_blocks[0], throughput.BasicBlockWithThroughput
-    )
+    has_throughputs = len(basic_blocks[0].inverse_throughputs)
 
     max_blocks_in_batch = max_blocks_in_batch or num_input_blocks
     with timer.scoped('ModelBase.schedule_batch'):
@@ -1233,14 +1232,8 @@ class ModelBase(metaclass=abc.ABCMeta):
           break
 
         block: basic_block.BasicBlock = (
-            block_or_block_with_throughputs.block
-            if has_throughputs
-            else block_or_block_with_throughputs
+            basic_block_protos.basic_block_from_proto(block_or_block_with_throughputs.basic_block)
         )
-        if has_throughputs:
-          block_with_throughputs: throughput.BasicBlockWithThroughput = (
-              block_or_block_with_throughputs
-          )
 
         num_instructions_in_block = len(block.instructions)
 
@@ -1269,8 +1262,10 @@ class ModelBase(metaclass=abc.ABCMeta):
         self._add_basic_block_to_batch(block)
         num_prefixes = len(block.instructions)
         if has_throughputs:
+          new_throughput = throughput.BasicBlockThroughput(
+                  inverse_throughput_cycles=block_or_block_with_throughputs.inverse_throughputs[0].inverse_throughput_cycles)
           self._add_expected_outputs_to_batch(
-              throughputs=block_with_throughputs.throughputs,
+              throughputs=[new_throughput],
               randomize_expected_outputs=randomize_expected_outputs,
               num_prefixes=(num_prefixes if self.use_deltas else None),
           )
