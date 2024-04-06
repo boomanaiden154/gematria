@@ -33,12 +33,11 @@ def main(_):
   number_processed = 0
   error_sum = 0
 
-  for proto_a in predicted_protos:
+  for proto in predicted_protos:
     if number_processed % 10000 == 0:
       logging.info(f'Have processed {number_processed}')
-    basic_block_proto_a = throughput_protos.block_with_throughput_from_proto(proto_a)
-    throughput_a = basic_block_proto_a.throughputs[0].inverse_throughput_cycles[0]
-    throughput_b = basic_block_proto_a.throughputs[1].inverse_throughput_cycles[0]
+    throughput_a = proto.inverse_throughputs[0].inverse_throughput_cycles[0]
+    throughput_b = proto.inverse_throughputs[1].inverse_throughput_cycles[0]
     error = abs(throughput_b - throughput_a) / throughput_a
     error_sum += error
     number_processed += 1
