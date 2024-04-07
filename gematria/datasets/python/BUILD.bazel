@@ -64,3 +64,8 @@ gematria_py_binary(
         "//gematria/proto:throughput_py_pb2",
     ],
 )
+
+gematria_py_binary(
+    name = "split_dataset",
+    srcs = ["split_dataset.py"],
+)
