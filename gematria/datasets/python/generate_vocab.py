@@ -33,8 +33,11 @@ from gematria.proto import throughput_pb2
 from gematria.basic_block.python import basic_block_protos
 from gematria.basic_block.python import basic_block
 
-_INPUT_TFRECORD_FILE = flags.DEFINE_string(
-    'input_tfrecord',
+import os
+import multiprocessing
+
+_INPUT_DIR = flags.DEFINE_string(
+    'input_dir',
     None,
     'The path to the tfrecord file to process',
     required=True,
@@ -43,10 +46,9 @@ _OUTPUT_TXT_FILE = flags.DEFINE_string(
     'output_vocab', None, 'The path to the output txt file', required=True
 )
 
-
-def main(_) -> None:
+def process_file(file_name):
   loaded_protos = tfrecord.read_protos(
-      _INPUT_TFRECORD_FILE.value, throughput_pb2.BasicBlockWithThroughputProto
+       file_name, throughput_pb2.BasicBlockWithThroughputProto
   )
 
   tokens = set()
@@ -54,15 +56,30 @@ def main(_) -> None:
   current_proto_index = 0
 
   for proto in loaded_protos:
-    if current_proto_index % 1000 == 0:
-      logging.info(f'Just finished proto {current_proto_index}')
+    if current_proto_index % 10000 == 0:
+      logging.info(f'Just finished proto {current_proto_index} in {file_name}')
+    current_proto_index += 1
     basic_block_proto = basic_block_protos.basic_block_from_proto(
         proto.basic_block
     )
     for instruction in basic_block_proto.instructions:
       tokens.update(instruction.as_token_list())
 
-    current_proto_index += 1
+  return tokens
+    
+
+def main(_) -> None:
+  tokens = set()
+
+  file_paths = []
+  for input_file in os.listdir(_INPUT_DIR.value):
+    input_file_path = os.path.join(_INPUT_DIR.value, input_file)
+    file_paths.append(input_file_path)
+
+  with multiprocessing.Pool() as parallel_pool:
+    token_sets = parallel_pool.map(process_file, file_paths)
+    for token_set in token_sets:
+      tokens.update(token_set)
 
   with open(_OUTPUT_TXT_FILE.value, 'w') as output_file_handle:
     for token in tokens:
