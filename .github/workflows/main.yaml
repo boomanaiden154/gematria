@@ -35,3 +35,9 @@ jobs:
       run: cat /proc/cpuinfo | grep MHz
     - name: Debugging 2
       run: python3 -c "import os; print(os.sched_getaffinity(0))"
+    - name: Debugging 3
+      run: |
+        cat /sys/devices/system/cpu/cpu0/topology/thread_siblings_list
+        cat /sys/devices/system/cpu/cpu1/topology/thread_siblings_list
+        cat /sys/devices/system/cpu/cpu2/topology/thread_siblings_list
+        cat /sys/devices/system/cpu/cpu3/topology/thread_siblings_list
