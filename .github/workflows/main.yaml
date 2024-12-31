@@ -33,3 +33,5 @@ jobs:
     steps:
     - name: Debugging
       run: cat /proc/cpuinfo | grep MHz
+    - name: Debugging 2
+      run: python3 -c "import os; print(os.sched_getaffinity(0))"
