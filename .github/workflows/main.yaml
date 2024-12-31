@@ -29,7 +29,7 @@ on:
 jobs:
   debugging:
     name: Debugging
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - name: Debugging
       run: cat /proc/cpuinfo | grep MHz
